@@ -37,7 +37,7 @@ public class TripApp {
         double distance = rr.getDouble("distance_km");
         double toll = (pay == 1) ? rr.getDouble("toll_fastag") : rr.getDouble("toll_cash");
 
-        // Chosen vehicle
+        // Chosen vehicleds
         ResultSet vv = st.executeQuery("select * from vehicles where id = " + vehicleID);
         vv.next();
         double mileage = vv.getDouble("mileage");
