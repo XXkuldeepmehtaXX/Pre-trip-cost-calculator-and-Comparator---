@@ -7,16 +7,24 @@ public class TripApp {
         Connection con = DBConnection.getConnection();
         Statement st = con.createStatement();
 
-        // Routes show here
-        ResultSet r = st.executeQuery("select * from routes");
-        System.out.println("--- Routes ---");
-        while (r.next()) {
-            System.out.println(r.getInt("id") + ". " + r.getString("source")
-                + " -> " + r.getString("destination")
-                + " (" + r.getDouble("distance_km") + " km)");
+        // Route: distance comes from the API
+        System.out.print("From: ");
+        String from = sc.nextLine();
+        System.out.print("To: ");
+        String to = sc.nextLine();
+
+        double distance;
+        try {
+            distance = DistanceAPI.getDistanceKm(from, to);
+        } catch (Exception e) {
+            System.out.println("Could not get distance: " + e.getMessage());
+            con.close();
+            return;
         }
-        System.out.print("Choose route id: ");
-        int routeID = sc.nextInt();
+        System.out.println("Distance (from API): " + Math.round(distance) + " km");
+
+        System.out.print("Toll for this trip (Rs): ");
+        double toll = sc.nextDouble();
 
         // Vehicles show here
         ResultSet v = st.executeQuery("select * from vehicles");
@@ -28,16 +36,7 @@ public class TripApp {
         System.out.print("Choose vehicle id: ");
         int vehicleID = sc.nextInt();
 
-        System.out.print("Toll payment (1 = FASTag, 2 = Cash): ");
-        int pay = sc.nextInt();
-
-        // Chosen route
-        ResultSet rr = st.executeQuery("select * from routes where id = " + routeID);
-        rr.next();
-        double distance = rr.getDouble("distance_km");
-        double toll = (pay == 1) ? rr.getDouble("toll_fastag") : rr.getDouble("toll_cash");
-
-        // Chosen vehicles
+        // Chosen vehicle
         ResultSet vv = st.executeQuery("select * from vehicles where id = " + vehicleID);
         vv.next();
         double mileage = vv.getDouble("mileage");
@@ -50,10 +49,11 @@ public class TripApp {
         double total = energyCost + toll;
 
         System.out.println("\n--- Trip Summary ---");
-        System.out.println("Energy cost  : Rs " + energyCost);
+        System.out.println("Distance     : " + Math.round(distance) + " km");
+        System.out.println("Energy cost  : Rs " + Math.round(energyCost));
         System.out.println("Toll         : Rs " + toll);
         System.out.println("Refuel stops : " + stops);
-        System.out.println("Total        : Rs " + total);
+        System.out.println("Total        : Rs " + Math.round(total));
 
         con.close();
     }
