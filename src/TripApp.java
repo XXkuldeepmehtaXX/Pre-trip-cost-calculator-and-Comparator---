@@ -7,26 +7,56 @@ public class TripApp {
         Connection con = DBConnection.getConnection();
         Statement st = con.createStatement();
 
-        // Route: distance comes from the API
-        System.out.print("From: ");
-        String from = sc.nextLine();
-        System.out.print("To: ");
-        String to = sc.nextLine();
-
         double distance;
-        try {
-            distance = DistanceAPI.getDistanceKm(from, to);
-        } catch (Exception e) {
-            System.out.println("Could not get distance: " + e.getMessage());
-            con.close();
-            return;
+        double toll;
+
+        System.out.println("1. Saved route (verified toll from database)");
+        System.out.println("2. Any route (distance from API)");
+        System.out.print("Choose: ");
+        int mode = sc.nextInt();
+
+        if (mode == 1) {
+            // ---- route from the database ----
+            ResultSet r = st.executeQuery("select * from routes");
+            System.out.println("--- Routes ---");
+            while (r.next()) {
+                System.out.println(r.getInt("id") + ". " + r.getString("source")
+                    + " -> " + r.getString("destination")
+                    + " (" + r.getDouble("distance_km") + " km)");
+            }
+            System.out.print("Choose route id: ");
+            int routeID = sc.nextInt();
+
+            System.out.print("Toll payment (1 = FASTag, 2 = Cash): ");
+            int pay = sc.nextInt();
+
+            ResultSet rr = st.executeQuery("select * from routes where id = " + routeID);
+            rr.next();
+            distance = rr.getDouble("distance_km");
+            toll = (pay == 1) ? rr.getDouble("toll_fastag") : rr.getDouble("toll_cash");
+
+        } else {
+            // ---- distance from the API ----
+            sc.nextLine();   // clears the leftover Enter
+            System.out.print("From: ");
+            String from = sc.nextLine();
+            System.out.print("To: ");
+            String to = sc.nextLine();
+
+            try {
+                distance = DistanceAPI.getDistanceKm(from, to);
+            } catch (Exception e) {
+                System.out.println("Could not get distance: " + e.getMessage());
+                con.close();
+                return;
+            }
+            System.out.println("Distance (from API): " + Math.round(distance) + " km");
+
+            System.out.print("Toll for this trip (Rs): ");
+            toll = sc.nextDouble();
         }
-        System.out.println("Distance (from API): " + Math.round(distance) + " km");
 
-        System.out.print("Toll for this trip (Rs): ");
-        double toll = sc.nextDouble();
-
-        // Vehicles show here
+        // ---- vehicles ----
         ResultSet v = st.executeQuery("select * from vehicles");
         System.out.println("--- Vehicles ---");
         while (v.next()) {
@@ -36,24 +66,18 @@ public class TripApp {
         System.out.print("Choose vehicle id: ");
         int vehicleID = sc.nextInt();
 
-        // Chosen vehicle
         ResultSet vv = st.executeQuery("select * from vehicles where id = " + vehicleID);
         vv.next();
+        String vName = vv.getString("name");
+        String vType = vv.getString("type");
         double mileage = vv.getDouble("mileage");
         double range = vv.getDouble("tank_range");
         double price = vv.getDouble("price_per_unit");
 
-        // Calculations
-        double energyCost = (distance / mileage) * price;
-        int stops = (int) Math.ceil(distance / range) - 1;
-        double total = energyCost + toll;
-
-        System.out.println("\n--- Trip Summary ---");
-        System.out.println("Distance     : " + Math.round(distance) + " km");
-        System.out.println("Energy cost  : Rs " + Math.round(energyCost));
-        System.out.println("Toll         : Rs " + toll);
-        System.out.println("Refuel stops : " + stops);
-        System.out.println("Total        : Rs " + Math.round(total));
+        // ---- formulas with working ----
+        System.out.println();
+        System.out.println("===== TRIP COST (step by step) =====");
+        System.out.println(CostCalculator.report(vName, vType, distance, mileage, range, price, toll));
 
         con.close();
     }

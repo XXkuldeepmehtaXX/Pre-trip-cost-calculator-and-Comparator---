@@ -4,7 +4,7 @@ import java.sql.*;
 
 public class MainFrame extends JFrame {
 
-    // small holder so the combo box can show a name but keep the numbers
+    // holds one vehicle: the drop-down shows the name, we keep the numbers for the formulas
     static class VehicleItem {
         String name, type;
         double mileage, range, price;
@@ -16,7 +16,7 @@ public class MainFrame extends JFrame {
     JTextField tollField = new JTextField("0", 15);
     JComboBox<VehicleItem> vehicleBox = new JComboBox<>();
     JButton calcBtn = new JButton("Calculate");
-    JTextArea result = new JTextArea(7, 30);
+    JTextArea result = new JTextArea(18, 50);
 
     public MainFrame() {
         setTitle("EcoRoute - Pre-Trip Cost Calculator");
@@ -37,7 +37,7 @@ public class MainFrame extends JFrame {
         mid.add(calcBtn);
         add(mid, BorderLayout.CENTER);
 
-        // result area
+        // result area (monospaced so the working lines up)
         result.setEditable(false);
         result.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
         JScrollPane sp = new JScrollPane(result);
@@ -99,17 +99,9 @@ public class MainFrame extends JFrame {
             protected void done() {
                 try {
                     double distance = get();
-                    double energy = (distance / v.mileage) * v.price;
-                    int stops = Math.max(0, (int) Math.ceil(distance / v.range) - 1);
-                    double total = energy + toll;
-
-                    result.setText(String.format(
-                        "Distance     : %.0f km%n"
-                      + "Energy cost  : Rs %.0f%n"
-                      + "Toll         : Rs %.0f%n"
-                      + "Refuel stops : %d%n"
-                      + "Total        : Rs %.0f",
-                        distance, energy, toll, stops, total));
+                    result.setText(CostCalculator.report(
+                        v.name, v.type, distance, v.mileage, v.range, v.price, toll));
+                    result.setCaretPosition(0);   // show the top of the report
                 } catch (Exception ex) {
                     Throwable c = (ex.getCause() != null) ? ex.getCause() : ex;
                     result.setText("Could not get distance: " + c.getMessage());
