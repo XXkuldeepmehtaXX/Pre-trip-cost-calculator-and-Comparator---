@@ -1,5 +1,8 @@
 import javax.swing.*;
 import java.awt.*;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
 
 public class MainFrame extends JFrame {
@@ -16,7 +19,12 @@ public class MainFrame extends JFrame {
     JTextField tollField = new JTextField("0", 15);
     JComboBox<VehicleItem> vehicleBox = new JComboBox<>();
     JButton calcBtn = new JButton("Calculate");
-    JTextArea result = new JTextArea(18, 50);
+    JButton navBtn = new JButton("Navigate");
+    JButton helpBtn = new JButton("Help");
+    JTextArea result = new JTextArea(8, 40);
+
+    // working of the last calculation, shown in the Help window
+    String lastReport = null;
 
     public MainFrame() {
         setTitle("EcoRoute - Pre-Trip Cost Calculator");
@@ -32,12 +40,14 @@ public class MainFrame extends JFrame {
         form.add(new JLabel("Vehicle:"));     form.add(vehicleBox);
         add(form, BorderLayout.NORTH);
 
-        // button
+        // buttons
         JPanel mid = new JPanel();
         mid.add(calcBtn);
+        mid.add(navBtn);
+        mid.add(helpBtn);
         add(mid, BorderLayout.CENTER);
 
-        // result area (monospaced so the working lines up)
+        // result area
         result.setEditable(false);
         result.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
         JScrollPane sp = new JScrollPane(result);
@@ -46,6 +56,8 @@ public class MainFrame extends JFrame {
 
         loadVehicles();
         calcBtn.addActionListener(e -> calculate());
+        navBtn.addActionListener(e -> openMaps());
+        helpBtn.addActionListener(e -> showHelp());
 
         pack();
         setLocationRelativeTo(null);   // centre on screen
@@ -99,9 +111,12 @@ public class MainFrame extends JFrame {
             protected void done() {
                 try {
                     double distance = get();
-                    result.setText(CostCalculator.report(
-                        v.name, v.type, distance, v.mileage, v.range, v.price, toll));
-                    result.setCaretPosition(0);   // show the top of the report
+                    // short result on screen
+                    result.setText(CostCalculator.summary(
+                        distance, v.mileage, v.range, v.price, toll));
+                    // full working is kept for the Help button
+                    lastReport = CostCalculator.report(
+                        v.name, v.type, distance, v.mileage, v.range, v.price, toll);
                 } catch (Exception ex) {
                     Throwable c = (ex.getCause() != null) ? ex.getCause() : ex;
                     result.setText("Could not get distance: " + c.getMessage());
@@ -109,6 +124,55 @@ public class MainFrame extends JFrame {
                 calcBtn.setEnabled(true);
             }
         }.execute();
+    }
+
+    // Navigate button: opens Google Maps directions for the From and To places
+    private void openMaps() {
+        String from = fromField.getText().trim();
+        String to = toField.getText().trim();
+
+        if (from.isEmpty() || to.isEmpty()) {
+            result.setText("Enter From and To to open the route in Google Maps.");
+            return;
+        }
+
+        try {
+            String url = "https://www.google.com/maps/dir/?api=1"
+                + "&origin=" + URLEncoder.encode(from, StandardCharsets.UTF_8)
+                + "&destination=" + URLEncoder.encode(to, StandardCharsets.UTF_8)
+                + "&travelmode=driving";
+
+            if (Desktop.isDesktopSupported()
+                    && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                Desktop.getDesktop().browse(new URI(url));   // opens the default browser
+            } else {
+                JOptionPane.showMessageDialog(this, "Open this link in your browser:\n" + url);
+            }
+        } catch (Exception ex) {
+            result.setText("Could not open Google Maps: " + ex.getMessage());
+        }
+    }
+
+    // Help window: how the cost calculator works + working of the last calculation
+    private void showHelp() {
+        String nl = System.lineSeparator();
+        StringBuilder sb = new StringBuilder(CostCalculator.helpText());
+        sb.append(nl).append(nl);
+        if (lastReport == null) {
+            sb.append("Click Calculate first to see the working for your trip here.");
+        } else {
+            sb.append("WORKING FOR YOUR LAST CALCULATION").append(nl);
+            sb.append("---------------------------------").append(nl);
+            sb.append(lastReport);
+        }
+
+        JTextArea area = new JTextArea(sb.toString(), 24, 58);
+        area.setEditable(false);
+        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        area.setCaretPosition(0);
+
+        JOptionPane.showMessageDialog(this, new JScrollPane(area),
+            "How the Cost Calculator works", JOptionPane.INFORMATION_MESSAGE);
     }
 
     public static void main(String[] args) {

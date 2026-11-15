@@ -74,10 +74,20 @@ public class TripApp {
         double range = vv.getDouble("tank_range");
         double price = vv.getDouble("price_per_unit");
 
-        // ---- formulas with working ----
+        // ---- short result ----
         System.out.println();
-        System.out.println("===== TRIP COST (step by step) =====");
-        System.out.println(CostCalculator.report(vName, vType, distance, mileage, range, price, toll));
+        System.out.println("--- Trip Summary ---");
+        System.out.println(CostCalculator.summary(distance, mileage, range, price, toll));
+
+        // ---- help: how it was calculated ----
+        System.out.println();
+        System.out.print("Help: show how this was calculated? (1 = Yes, 2 = No): ");
+        if (sc.nextInt() == 1) {
+            System.out.println();
+            System.out.println(CostCalculator.helpText());
+            System.out.println();
+            System.out.println(CostCalculator.report(vName, vType, distance, mileage, range, price, toll));
+        }
 
         con.close();
     }
