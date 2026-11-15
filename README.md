@@ -1,19 +1,80 @@
-# EcoRoute: Pre-Trip Cost Calculator and Comparator
+<h1 align="center">EcoRoute</h1>
+<h3 align="center">Pre-Trip Cost Calculator and Comparator</h3>
 
-A Java application that estimates the cost of a planned trip before the journey starts. The user enters a source, a destination, the toll amount and a vehicle (Fuel, EV or Hybrid). The app shows the distance, energy cost, toll, number of refuel or charge stops and the total cost, and can explain every formula step by step.
+<p align="center">
+  Plan a trip, pick a vehicle, and see the exact cost with every formula explained.<br>
+  <b>Created by <a href="https://github.com/XXkuldeepmehtaXX">Kuldeep Mehta</a></b>
+</p>
 
-## Why this project
+<p align="center">
+  <img src="https://img.shields.io/badge/Java-11%2B-orange" alt="Java 11+">
+  <img src="https://img.shields.io/badge/GUI-Swing-blue" alt="Swing">
+  <img src="https://img.shields.io/badge/Database-MySQL-00758f" alt="MySQL">
+  <img src="https://img.shields.io/badge/JSON-Gson-brightgreen" alt="Gson">
+  <img src="https://img.shields.io/badge/Maps-OSRM%20%2B%20Nominatim-7ebc6f" alt="OSRM and Nominatim">
+</p>
+
+<p align="center">
+  <a href="#about">About</a> |
+  <a href="#features">Features</a> |
+  <a href="#how-the-parts-fit-together">Architecture</a> |
+  <a href="#how-the-cost-is-calculated">Formulas</a> |
+  <a href="#database">Database</a> |
+  <a href="#maps-and-navigation">Maps</a> |
+  <a href="#logic-work">Logic</a> |
+  <a href="#how-to-run">Run</a>
+</p>
+
+---
+
+## About
 Trip costs found through word of mouth or crowd-sourced prices are often inflated or inaccurate. EcoRoute works out the estimate from the vehicle's own mileage, range and fuel or charging price, together with the toll for the route (cash or FASTag).
+
+The user enters a source, a destination, the toll amount and a vehicle (Fuel, EV or Hybrid). The app shows the distance, energy cost, toll, number of refuel or charge stops and the total cost, and a **Help** button explains every formula step by step.
 
 ## Features
 - Three vehicle types (Fuel, EV, Hybrid) stored in a MySQL database
 - Road distance between any two places, fetched from the **Nominatim** and **OSRM** APIs
 - Cost calculation: energy cost, toll and refuel-stop count
-- **Help button** that shows how the calculator works, with each formula and the working for your own trip
+- **Help button** that shows the formulas and the working for your own trip
 - **Navigate button** that opens the route in Google Maps
 - Two front ends: a Swing window (`MainFrame`) and a console version (`TripApp`)
 
+## Screenshots
+
+**Console version (`TripApp`)**: distance from the API, vehicle menu and trip summary
+
+<img src="screenshots/console-run.png" alt="Console run of TripApp" width="700">
+
+<!--
+GUI screenshots: save your own screenshots in the screenshots folder with these names,
+then remove the comment marks around this block.
+
+**Main window**
+<img src="screenshots/gui-main.png" alt="EcoRoute main window" width="520">
+
+**Help window**
+<img src="screenshots/gui-help.png" alt="Help window with formulas and working" width="520">
+
+**Navigate button (Google Maps)**
+<img src="screenshots/google-maps.png" alt="Route opened in Google Maps" width="620">
+-->
+
+## How the parts fit together
+
+<img src="screenshots/architecture.png" alt="Architecture diagram" width="900">
+
+| Class | Responsibility |
+|---|---|
+| `DBConnection` | opens the JDBC connection to MySQL |
+| `DistanceAPI` | place names to road distance (Nominatim + OSRM, parsed with Gson) |
+| `CostCalculator` | the four formulas, the short summary, the help text and the step-by-step working |
+| `MainFrame` | Swing window with the Calculate, Navigate and Help buttons |
+| `TripApp` | the same flow in the console |
+
 ## How the cost is calculated
+
+<img src="screenshots/formulas.png" alt="The four formulas with a worked example" width="900">
 
 | Step | Formula |
 |---|---|
@@ -24,11 +85,78 @@ Trip costs found through word of mouth or crowd-sourced prices are often inflate
 
 `ceil` rounds up because a trip cannot have half a refuel stop. One is subtracted because the trip starts with a full tank.
 
-**Example:** 300 km, Honda Activa (mileage 50, range 400, Rs 100 per litre), toll Rs 400
-1. 300 / 50 = 6 litres
-2. 6 x 100 = Rs 600
-3. ceil(300 / 400) - 1 = 1 - 1 = 0 stops
-4. 600 + 400 = Rs 1000
+## Database
+
+<img src="screenshots/database.png" alt="Database tables" width="800">
+
+`database.sql` creates the `trip_db` database with 10 sample vehicles and 12 sample routes.
+
+## Maps and navigation
+
+EcoRoute uses two kinds of map services.
+
+### 1. Distance (OpenStreetMap services)
+Both are free web APIs. The program sends an HTTP request and reads the JSON reply with Gson.
+
+| Service | Job | Example request |
+|---|---|---|
+| **Nominatim** | place name to latitude and longitude | `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=Delhi` |
+| **OSRM** | two coordinates to driving distance | `https://router.project-osrm.org/route/v1/driving/77.2090,28.6139;75.7873,26.9124?overview=false` |
+
+- OSRM expects coordinates as **longitude,latitude**, the opposite order from Nominatim's `lat` and `lon`.
+- OSRM returns the distance in metres, so the program divides by 1000 to get kilometres.
+- Nominatim asks for a `User-Agent` header and about one request per second, so `DistanceAPI` sends the header and waits 1.1 seconds between the two lookups.
+
+### 2. Navigate button (Google Maps)
+The **Navigate** button builds a Google Maps directions link from the From and To boxes and opens it in the default browser:
+
+```
+https://www.google.com/maps/dir/?api=1&origin=Delhi&destination=Jaipur&travelmode=driving
+```
+
+| Part | Meaning |
+|---|---|
+| `origin` | the From place |
+| `destination` | the To place |
+| `travelmode=driving` | show car directions |
+
+It needs no API key, because the program only opens a link. Place names are made safe for the URL with `URLEncoder`, and the browser is opened with `java.awt.Desktop`.
+
+The distance used in the calculation comes from OSRM, while the route shown on Google Maps is Google's own, so the two kilometre values can differ a little.
+
+## Logic work
+
+### What happens when the user clicks Calculate
+1. **Read and check the input.** From, To and the vehicle must be filled in, and the toll must be a number. Otherwise a message is shown and the calculation stops.
+2. **Get the distance.** `DistanceAPI.getDistanceKm(from, to)` converts both places to coordinates with Nominatim, sends them to OSRM and returns the distance in km. This runs in a background thread (`SwingWorker`), so the window does not freeze while waiting for the internet.
+3. **Get the vehicle data.** The selected vehicle's mileage, range and price per unit come from the `vehicles` table in MySQL.
+4. **Apply the formulas** in `CostCalculator`.
+5. **Show the result.** The short summary appears in the window, and the full working is saved so the **Help** button can display it.
+
+### Flow in pseudo-code
+```
+read From, To, Toll, Vehicle
+if any input is missing or Toll is not a number: show message, stop
+
+distance = DistanceAPI.getDistanceKm(From, To)     (background thread)
+vehicle  = row from the vehicles table
+
+energy     = distance / vehicle.mileage
+energyCost = energy * vehicle.price
+stops      = max(0, ceil(distance / vehicle.range) - 1)
+total      = energyCost + Toll
+
+show summary(distance, energyCost, Toll, stops, total)
+store step-by-step working for the Help window
+```
+
+### Error handling
+| Situation | What the program does |
+|---|---|
+| MySQL is not running | shows "Could not load vehicles. Is MySQL running?" |
+| Place not found or no internet | shows "Could not get distance" with the reason |
+| Toll is not a number | shows "Toll must be a number." |
+| From or To is empty | shows a message and does not open Maps or calculate |
 
 ## Tech stack
 - Java (JDK 11 or newer)
@@ -42,26 +170,13 @@ Trip costs found through word of mouth or crowd-sourced prices are often inflate
 ```
 src/
   DBConnection.java    opens the JDBC connection to MySQL
-  DistanceAPI.java     place names to road distance (Nominatim + OSRM, parsed with Gson)
-  CostCalculator.java  the formulas, the short summary and the step-by-step working
+  DistanceAPI.java     place names to road distance
+  CostCalculator.java  formulas, summary, help text, step-by-step working
   MainFrame.java       Swing GUI with Calculate, Navigate and Help buttons
   TripApp.java         console version
 lib/                   mysql-connector-j and gson jars
+screenshots/           images used in this README
 database.sql           creates the trip_db database with sample data
-```
-
-## How it works
-```
-User input (From, To, Toll, Vehicle)
-        |
-        v
-DistanceAPI --> Nominatim (place to coordinates) --> OSRM (coordinates to distance)
-        |
-        v
-CostCalculator <-- vehicle data from MySQL (via DBConnection)
-        |
-        v
-Summary on screen, full working in the Help window
 ```
 
 ## How to run
@@ -101,5 +216,5 @@ On Mac or Linux, use `:` instead of `;` in the classpath. An internet connection
 - Route and toll tables with verified toll data
 - Round trip and lodging cost
 
-## Team
-Kuldeep, Ayush and Aakash. The API integration (`DistanceAPI`) was done by Kuldeep.
+## Author
+Created by **[Kuldeep Mehta](https://github.com/XXkuldeepmehtaXX)**.
