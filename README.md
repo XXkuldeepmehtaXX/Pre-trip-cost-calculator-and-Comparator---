@@ -42,19 +42,23 @@ The user enters a source, a destination, the toll amount and a vehicle (Fuel, EV
 
 ## Screenshots
 
+**Main window (`MainFrame`)** with the From, To, Toll and Vehicle fields and the Calculate, Navigate and Help buttons
+
+<img src="screenshots/gui-main.png" alt="EcoRoute main window" width="420">
+
 **Console version (`TripApp`)**: distance from the API, vehicle menu and trip summary
 
 <img src="screenshots/console-run.png" alt="Console run of TripApp" width="700">
 
 <!--
-GUI screenshots: save your own screenshots in the screenshots folder with these names,
+More screenshots: save your own screenshots in the screenshots folder with these names,
 then remove the comment marks around this block.
-
-**Main window**
-<img src="screenshots/gui-main.png" alt="EcoRoute main window" width="520">
 
 **Help window**
 <img src="screenshots/gui-help.png" alt="Help window with formulas and working" width="520">
+
+**Result after Calculate**
+<img src="screenshots/gui-result.png" alt="Window after clicking Calculate" width="520">
 
 **Navigate button (Google Maps)**
 <img src="screenshots/google-maps.png" alt="Route opened in Google Maps" width="620">
